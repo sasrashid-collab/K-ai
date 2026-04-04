@@ -3,42 +3,54 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-# --- بەشی ناسنامە و ستایل (Frontend) ---
-st.set_page_config(page_title="K.AI Project", layout="centered")
-st.title("🤖 پڕۆژەی K.AI")
-st.subheader("خاوەن: K.Kod")
-st.write("بەخێربێیت جەنابت! ئەمە دەسپێکی وێب ئەپڵیکەیشنی تایبەت بە کوردە.")
+# --- ڕێکخستنی ناسنامەی K.AI ---
+st.set_page_config(page_title="K.AI by K.Kod", page_icon="🤖")
+st.title("🤖 پڕۆژەی زیرەکی دەستکردی K.AI")
+st.markdown("### خاوەن و سەرپەرشتیار: **K.Kod**")
+st.info("ئەم مۆدێلە لەسەر بنەمای زانیارییە کوردییەکان پەرە بەخۆی دەدات.")
 
-# --- بەشی لۆژیک و فێربوون (Backend) ---
-def learn_from_link(url):
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        response = requests.get(url, headers=headers)
-        response.encoding = 'utf-8'
-        soup = BeautifulSoup(response.text, 'html.parser')
-        paragraphs = soup.find_all('p')
-        text_content = "\n".join([p.get_text() for p in paragraphs])
-        
-        # پاشەکەوتکردن لە فۆڵدەری K-Data
-        if not os.path.exists('K-Data'): os.makedirs('K-Data')
-        with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
-            f.write(f"\nسەرچاوە: {url}\n{text_content[:1000]}...\n")
-        return True
-    except:
-        return False
+# دروستکردنی فۆڵدەری زانیاری ئەگەر نەبێت
+if not os.path.exists('K-Data'):
+    os.makedirs('K-Data')
 
-# --- ڕوونمای بەکارهێنەر (Interface) ---
-url_input = st.text_input("لینکە کوردییەکە لێرە دابنێ:")
-if st.button("بدە بە K.AI"):
+# --- بەشی یەکەم: خوێندنەوەی لینک (فێربوون) ---
+st.sidebar.header("📚 مێشکی K.AI دەوڵەمەند بکە")
+url_input = st.sidebar.text_input("لینکێکی کوردی لێرە دابنێ:")
+if st.sidebar.button("فێری بکە"):
     if url_input:
         with st.spinner('خەریکم زانیارییەکان دەخوێنمەوە...'):
-            success = learn_from_link(url_input)
-            if success:
-                st.success("✅ K.AI زانیارییەکەی وەرگرت و مێشکی پەرە سەند!")
-            else:
-                st.error("❌ ناتوانم ئەم لینکە بخوێنمەوە.")
-    else:
-        st.warning("تکایە سەرەتا لینکێک بنووسە.")
+            try:
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                res = requests.get(url_input, headers=headers)
+                res.encoding = 'utf-8'
+                soup = BeautifulSoup(res.text, 'html.parser')
+                text = " ".join([p.get_text() for p in soup.find_all('p')])
+                
+                with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
+                    f.write(f"\n{text[:2000]}") # پاشەکەوتکردنی ٢٠٠٠ پیتی یەکەم
+                st.sidebar.success("✅ زانیاری نوێ وەرگیرا!")
+            except:
+                st.sidebar.error("❌ کێشەیەک لە لینکەکەدا هەیە.")
 
+# --- بەشی دووەم: چات و وەڵامدانەوە (Search) ---
 st.divider()
-st.info("ئەم ئەپڵیکەیشنە لەسەر لاپتۆپەکەت بە کەمترین ڕام کار دەکات.")
+user_query = st.text_input("چی دەپرسی لە K.AI؟ (بۆ نموونە: مێژووی کورد چییە؟)")
+
+if user_query:
+    with st.chat_message("assistant"):
+        # لێرەدا K.AI دەگەڕێت لەناو ئەو فایلەی کە پێشتر فێری بووە
+        if os.path.exists("K-Data/brain.txt"):
+            with open("K-Data/brain.txt", "r", encoding="utf-8") as f:
+                knowledge = f.read()
+            
+            # گەڕانێکی سادە بۆ دۆزینەوەی وەڵام (وەک نموونە)
+            if user_query.lower() in knowledge.lower() or "کورد" in user_query:
+                st.write(f"وەک یاریدەدەرێکی K.Kod، ئەوەی فێری بووم دەربارەی '{user_query}':")
+                st.write(knowledge[:500] + "...") # نیشاندانی بەشێک لە زانیارییەکە
+            else:
+                st.write("ببورە جەنابت، هێشتا زانیاری تەواوم نییە لەسەر ئەم بابەتە. تکایە لینکێکی ترم بدەرێ تا فێری ببم.")
+        else:
+            st.write("سڵاو! من K.AIـم. تکایە سەرەتا لە ڕێگەی لایەنی چەپەوە چەند لینکێکم بدەرێ تا فێری ببم و وەڵامت بدەمەوە.")
+
+st.sidebar.write("---")
+st.sidebar.write("وەشانی: 1.0 (Beta)")
