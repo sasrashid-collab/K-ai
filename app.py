@@ -4,73 +4,65 @@ from bs4 import BeautifulSoup
 import os
 
 # --- ڕێکخستنی لاپەڕە ---
-st.set_page_config(page_title="K.AI Pro - K.Kod", page_icon="📜", layout="wide")
+st.set_page_config(page_title="K.AI Pro - K.Kod", layout="wide")
 
-# ستایلی کوردی بۆ نووسینەکان
-st.markdown("""
-    <style>
-    .ststr { direction: rtl; text-align: right; }
-    p, h1, h2, h3, div { direction: rtl; text-align: right; font-family: 'Tahoma'; }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.title("🤖 پڕۆژەی K.AI (وەشانی پێشکەوتوو)")
-st.subheader("سەرپەرشتیار: K.Kod")
-
-# دروستکردنی فۆڵدەری مێشک ئەگەر نەبێت
+# دروستکردنی فۆڵدەری مێشک
 if not os.path.exists('K-Data'):
     os.makedirs('K-Data')
 
-# --- بەشی فێربوونی قووڵ (Sidebar) ---
-st.sidebar.header("📚 فێربوونی بێ سنوور")
-url_input = st.sidebar.text_input("لینکە کوردییەکە لێرە دابنێ:")
+st.title("🤖 پڕۆژەی K.AI - وەشانی چارەسەرکەر")
+st.subheader("سەرپەرشتیار: K.Kod")
 
-if st.sidebar.button("هەموو لاپەڕەکە بخوێنەوە"):
+# --- بەشی فێربوونی زیرەک (Sidebar) ---
+st.sidebar.header("📚 فێربوونی مێشکی K.AI")
+
+# ١. فێربوون لە ڕێگەی لینک (بە چاکسازی هەڵە)
+url_input = st.sidebar.text_input("لینک لێرە دابنێ (نموونە: https://google.com):")
+
+if st.sidebar.button("فێربوون لە لینک"):
     if url_input:
-        with st.spinner('K.AI خەریکی خوێندنەوەی تەواوی دەقەکەیە...'):
-            try:
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                res = requests.get(url_input, headers=headers)
-                res.encoding = 'utf-8'
-                soup = BeautifulSoup(res.text, 'html.parser')
-                
-                # لێرەدا هەموو پەرەگرافەکان کۆدەکەینەوە بەبێ سنوور
-                all_paragraphs = soup.find_all('p')
-                full_text = "\n".join([p.get_text() for p in all_paragraphs])
-                
-                if len(full_text) > 100:
-                    with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
-                        f.write(f"\n\n--- سەرچاوەی نوێ: {url_input} ---\n")
-                        f.write(full_text)
-                    st.sidebar.success(f"✅ {len(full_text)} پیتی نوێ خرایە مێشکی K.AI")
-                else:
-                    st.sidebar.warning("دەقێکی ئەوتۆ لەم لینکەدا نەدۆزرایەوە.")
-            except Exception as e:
-                st.sidebar.error(f"کێشە: {e}")
+        clean_url = url_input.strip() # سڕینەوەی بۆشاییە زیادەکان
+        if not clean_url.startswith(("http://", "https://")):
+            clean_url = "https://" + clean_url
+            
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            res = requests.get(clean_url, headers=headers, timeout=10)
+            res.encoding = 'utf-8'
+            soup = BeautifulSoup(res.text, 'html.parser')
+            text = " ".join([p.get_text() for p in soup.find_all(['p', 'h1', 'h2'])])
+            
+            with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
+                f.write(f"\n{text}")
+            st.sidebar.success("✅ لینکەکە بە سەرکەوتوویی خوێندرایەوە!")
+        except Exception as e:
+            st.sidebar.error(f"❌ کێشە لە لینکەکەدا هەیە: {str(e)}")
 
-# --- بەشی چاتی زیرەک و وەڵامی تێروتەسەل ---
-st.divider()
-st.markdown("### 💬 پرسیار لە K.AI بکە")
-user_query = st.text_input("چی دەپرسی دەربارەی مێژوو یان زمانی کورد؟")
+st.sidebar.divider()
 
+# ٢. فێربوونی ڕاستەوخۆ (بەبێ لینک) - ئەمە بۆ جەنابت ئاسانترە
+st.sidebar.header("✍️ فێربوونی ڕاستەوخۆ")
+manual_text = st.sidebar.text_area("دەقێکی مێژوویی لێرە پەیست بکە:")
+if st.sidebar.button("زیادکردن بۆ مێشک"):
+    if manual_text:
+        with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
+            f.write(f"\n{manual_text}")
+        st.sidebar.success("✅ دەقەکە زیادکرا!")
+
+# --- بەشی چات و پرسیار ---
+user_query = st.text_input("چی دەپرسی لە K.AI؟")
 if user_query:
     if os.path.exists("K-Data/brain.txt"):
         with open("K-Data/brain.txt", "r", encoding="utf-8") as f:
-            brain_content = f.read()
+            knowledge = f.read()
         
-        # لۆژیکی گەڕانی قووڵ
-        keywords = user_query.split()
-        matches = [line for line in brain_content.split('\n') if any(word in line for word in keywords)]
-        
-        if matches:
-            st.markdown("#### 📝 وەڵامی K.AI:")
-            # لێرەدا وەڵامێکی درێژتر (تا ١٥٠٠ پیت) نیشان دەدەین
-            combined_response = "\n".join(matches[:15]) # ١٥ دێڕی یەکەم کە پەیوەندی هەیە
-            st.write(combined_response if len(combined_response) > 10 else "ببورە، زانیارییەکانم تەنها دەربارەی گشتیاتن، لینکی زیاترم بدەرێ بۆ وەڵامی وردتر.")
+        if user_query.lower() in knowledge.lower() or "کورد" in user_query:
+            st.write("📖 ئەوەی فێری بووم:")
+            # گەڕان بۆ دۆزینەوەی ئەو بەشەی پرسیارەکەی تێدایە
+            lines = knowledge.split('\n')
+            relevant_lines = [line for line in lines if any(word in line for word in user_query.split())]
+            st.write("\n".join(relevant_lines[:10]) if relevant_lines else knowledge[:1000])
         else:
-            st.warning("ئەم بابەتەم هێشتا نەخوێندووەتەوە. تکایە لینکێکم بدەرێ تا فێری ببم.")
+            st.warning("ببورە، هێشتا زانیاریم لەسەر ئەمە نییە.")
     else:
-        st.info("مێشکی K.AI هێشتا خاڵییە، تکایە لە لای چەپەوە لینکێکی بدەرێ.")
-
-st.sidebar.write("---")
-st.sidebar.write("ئامۆژگاری: چەند لینک زیاتر بێت، وەڵامەکان تێروتەسەلتر دەبن.")
+        st.info("تکایە سەرەتا مێشکی K.AI پڕ بکە لە زانیاری.")
