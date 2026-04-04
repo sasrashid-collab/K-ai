@@ -2,68 +2,106 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import os
+import time
 
-# --- ڕێکخستنی لاپەڕە ---
-st.set_page_config(page_title="K.AI Pro - K.Kod", layout="wide")
+# --- ١. ڕێکخستنی بنەڕەتی لاپەڕە ---
+st.set_page_config(page_title="K.AI Pro - K.Kod", layout="wide", page_icon="🤖")
 
+# دروستکردنی فۆڵدەری مێشک ئەگەر بوونی نەبێت
 if not os.path.exists('K-Data'):
     os.makedirs('K-Data')
 
-st.title("🤖 وەشانی نوێی K.AI بۆ خوێندنەوەی فایلەکانی گۆگڵ")
-st.subheader("سەرپەرشتیار: K.Kod")
+# ستایلی کوردی بۆ نیشاندانی دەقەکان (ڕاست بۆ چەپ)
+st.markdown("""
+    <style>
+    .stApp { direction: rtl; text-align: right; }
+    p, h1, h2, h3, div, span, label { direction: rtl; text-align: right !important; font-family: 'Tahoma'; }
+    .stTextInput, .stTextArea { direction: rtl; text-align: right; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- لۆژیکی خوێندنەوەی لینکەکان ---
-def clean_and_read(url):
+st.title("🤖 پڕۆژەی زیرەکی دەستکردی K.AI")
+st.subheader("خاوەن و سەرپەرشتیار: K.Kod")
+st.info("ئەم سیستمە لەسەر بنەمای زانیارییە مێژووییەکانی کورد پەرە بەخۆی دەدات.")
+
+# --- ٢. لۆژیکی خوێندنەوە و پاککردنەوەی لینکەکان ---
+def learn_from_url(url):
     url = url.strip()
-    # لادانی خاڵ یان هەر نیشانەیەک لە سەرەتای لینکەکە
-    if url.startswith("."):
-        url = url[1:]
+    # سڕینەوەی نیشانە زیادەکان لە سەرەتای لینک
+    if url.startswith("."): url = url[1:]
+    if not url.startswith(("http://", "https://")): url = "https://" + url
     
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     
     try:
-        response = requests.get(url, headers=headers, timeout=15)
+        # کاتی چاوەڕوانی بۆ ٦٠ چرکە زیاد کراوە بۆ ئەوەی وێبسایتە خاوەکان نەیبڕن
+        response = requests.get(url, headers=headers, timeout=60)
         response.encoding = 'utf-8'
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # گەڕان بەدوای دەق لە ناو فایلەکانی گۆگڵدا
-        text = ""
-        for tag in soup.find_all(['p', 'div', 'span']):
-            text += tag.get_text() + " "
-            
-        if len(text.strip()) > 20:
+        # کۆکردنەوەی دەق لە پەرەگراف و ناونیشانەکان
+        tags = soup.find_all(['p', 'h1', 'h2', 'h3', 'span'])
+        content = " ".join([t.get_text() for t in tags if len(t.get_text()) > 20])
+        
+        if len(content.strip()) > 30:
             with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
-                f.write(f"\n{text}")
-            return True, f"✅ {len(text[:1000])} پیت لەم لینکە وەرگیرا."
+                f.write(f"\n\n--- سەرچاوە: {url} ---\n{content}")
+            return True, f"✅ سەرکەوتوو بوو: {len(content)} پیت وەرگیرا."
         else:
-            return False, "⚠️ لاپەڕەکە بەتاڵە یان گۆگڵ ڕێگەی نەدا."
+            return False, "⚠️ دەقێکی ئەوتۆ لەم لاپەڕەیەدا نەدۆزرایەوە."
     except Exception as e:
-        return False, f"❌ هەڵە: {str(e)}"
+        return False, f"❌ هەڵە لە پەیوەندی: {str(e)}"
 
-# --- ڕوونمای بەکارهێنەر ---
-st.sidebar.header("📚 مێشکی K.AI")
-url_input = st.sidebar.text_area("لینکەکان لێرە دابنێ (هەر لینکێک لە دێڕێک):")
+# --- ٣. ڕوونمای بەکارهێنەر (Sidebar) ---
+st.sidebar.header("📚 فێربوونی K.AI")
 
+# بژاردەی یەکەم: خوێندنەوەی لینکەکان
+st.sidebar.markdown("### ١. لە ڕێگەی لینکەوە")
+urls_area = st.sidebar.text_area("لینکەکان لێرە دابنێ (هەر لینکێک لە دێڕێک):", height=150)
 if st.sidebar.button("دەستپێکردنی فێربوون"):
-    links = url_input.split('\n')
-    for link in links:
-        if link.strip():
-            success, msg = clean_and_read(link)
-            if success: st.sidebar.success(f"{link}: {msg}")
-            else: st.sidebar.error(f"{link}: {msg}")
+    if urls_area:
+        links = urls_area.split('\n')
+        for link in links:
+            if link.strip():
+                with st.spinner(f'خەریکی خوێندنەوەی: {link}'):
+                    ok, msg = learn_from_url(link)
+                    if ok: st.sidebar.success(msg)
+                    else: st.sidebar.error(f"{link}: {msg}")
+    else:
+        st.sidebar.warning("تکایە سەرەتا لینکێک بنووسە.")
 
-# --- بەشی چات ---
+st.sidebar.divider()
+
+# بژاردەی دووەم: پەیستی ڕاستەوخۆی دەق (بۆ جەنابت ئاسانترە)
+st.sidebar.markdown("### ٢. فێربوونی ڕاستەوخۆ")
+manual_data = st.sidebar.text_area("دەقێکی مێژوویی لێرە کۆپی-پەیست بکە:")
+if st.sidebar.button("زیادکردن بۆ مێشک"):
+    if manual_data:
+        with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
+            f.write(f"\n\n--- دەقی دەستی ---\n{manual_data}")
+        st.sidebar.success("✅ دەقەکە بە سەرکەوتوویی خرایە مێشکی K.AI")
+
+# --- ٤. بەشی چات و پرسیارکردن ---
 st.divider()
-query = st.text_input("پرسیار لە K.AI بکە:")
+st.markdown("### 💬 گفتوگۆ لەگەڵ K.AI")
+query = st.text_input("پرسیارەکەت لێرە بنووسە (بۆ نموونە: مێژووی کورد چییە؟):")
+
 if query:
     if os.path.exists("K-Data/brain.txt"):
         with open("K-Data/brain.txt", "r", encoding="utf-8") as f:
-            data = f.read()
-        # وەڵامێکی سادە لەسەر بنەمای ئەوەی خوێندوویەتییەوە
-        if query in data or "کورد" in query:
-            st.write("📖 وەڵامی دۆزراوە:")
-            st.write(data[:1500] + "...")
+            full_knowledge = f.read()
+        
+        # گەڕان بۆ دۆزینەوەی وەڵامێکی گونجاو
+        if query.strip() in full_knowledge or any(word in full_knowledge for word in query.split()):
+            st.markdown("#### 📖 وەڵامی K.AI بەپێی ئەو زانیارییانەی لایەتی:")
+            # نیشاندانی بەشێک لە مێشکەکە کە پەیوەندی بە پرسیارەکەوە هەیە
+            lines = [l for l in full_knowledge.split('\n') if len(l) > 40]
+            response_text = "\n\n".join(lines[:10]) # نیشاندانی ١٠ پەرەگرافی یەکەم وەک وەڵامی تێروتەسەل
+            st.write(response_text)
         else:
-            st.warning("ببورە، هێشتا ئەمەم فێر نەکراوە.")
+            st.warning("ببورە جەنابت، هێشتا زانیاری تەواوم لەسەر ئەم بابەتە نییە. تکایە لینک یان دەقێکی ترم بدەرێ تا فێری ببم.")
+    else:
+        st.info("سڵاو! من K.AIـم. هێشتا هیچ زانیارییەک لە مێشکمدا نییە، تکایە لە لای چەپەوە فێرم بکە.")
+
+st.sidebar.write("---")
+st.sidebar.write(f"وەشانی جێگیر: 3.5 | خاوەن: K.Kod")
