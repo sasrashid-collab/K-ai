@@ -2,77 +2,71 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import os
-import re
 
-# --- ڕێکخستنی لاپەڕە ---
-st.set_page_config(page_title="K.AI Pro - K.Kod", layout="wide")
+# --- ١. ڕێکخستنی بنەڕەتی و ستایلی کوردی ---
+st.set_page_config(page_title="K.AI v5.0 - K.Kod", layout="wide")
+st.markdown("""<style> .stApp { direction: rtl; text-align: right; font-family: 'Tahoma'; } 
+div.stButton > button { width: 100%; border-radius: 10px; background-color: #2e7d32; color: white; }
+.k-card { background-color: #f1f8e9; padding: 20px; border-right: 5px solid #2e7d32; margin: 10px 0; border-radius: 10px; } </style>""", unsafe_allow_html=True)
 
 if not os.path.exists('K-Data'): os.makedirs('K-Data')
 
-# ستایلی ڕاست-بۆ-چەپ و جوانکاری
-st.markdown("""<style> .stApp { direction: rtl; text-align: right; } p, h1, h2, h3, div { font-family: 'Tahoma'; line-height: 1.8; } </style>""", unsafe_allow_html=True)
+st.title("🤖 وەشانی زێڕینی K.AI")
+st.subheader("پڕۆژەی نیشتمانیی K.Kod بۆ خزمەتی مێژووی کورد")
 
-st.title("🤖 وەشانی پڕۆی K.AI")
-st.subheader("سەرپەرشتیار: K.Kod")
-
-# --- فلتەرکردنی دەقەکان (لادانی هەڵەکانی گۆگڵ) ---
-def clean_kurdish_text(text):
-    # لادانی ڕستە ئینگلیزییەکانی گۆگڵ و هەڵەکان
-    bad_phrases = ["Something went wrong", "URL isn't available", "Google Share", "Sign in", "Terms of Service"]
-    lines = text.split('\n')
-    cleaned_lines = []
-    for line in lines:
-        if not any(phrase in line for phrase in bad_phrases) and len(line.strip()) > 30:
-            cleaned_lines.append(line.strip())
-    return "\n\n".join(cleaned_lines)
-
-# --- لۆژیکی فێربوون ---
-def learn_from_url(url):
+# --- ٢. لۆژیکی خوێندنەوەی قووڵ و بێ هەڵە ---
+def deep_learn(url):
     url = url.strip().lstrip('.')
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
         res = requests.get(url, headers=headers, timeout=30)
         res.encoding = 'utf-8'
         soup = BeautifulSoup(res.text, 'html.parser')
-        raw_text = " ".join([t.get_text() for t in soup.find_all(['p', 'h1', 'h2', 'span'])])
-        final_text = clean_kurdish_text(raw_text)
         
-        if len(final_text) > 50:
-            with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
-                f.write(f"\n{final_text}")
-            return True, "✅ مێشک نوێکرایەوە."
-        return False, "⚠️ دەقێکی کوردی پاک نەدۆزرایەوە."
-    except: return False, "❌ کێشەی پەیوەندی."
+        # لادانی هەموو شتە زیادەکانی سایتەکە (ڕیکلام، مینیو، ئینگلیزی)
+        for extra in soup(['script', 'style', 'nav', 'footer']): extra.decompose()
+        
+        # تەنها ناونیشان و پەرەگرافە کوردییەکان دەهێنین
+        parts = soup.find_all(['h1', 'h2', 'h3', 'p'])
+        clean_text = "\n\n".join([p.get_text().strip() for p in parts if len(p.get_text()) > 40])
+        
+        # فلتەرکردنی وشە بێگانەکان و هەڵەکانی گۆگڵ
+        if "Something went wrong" in clean_text or len(clean_text) < 50:
+            return False, "⚠️ ئەم لینکە زانیاری پاکی تێدا نییە."
+            
+        with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
+            f.write(f"\n{clean_text}")
+        return True, "✅ مێشکی K.AI بە زانیاری نوێ پڕ بووەوە."
+    except: return False, "❌ کێشەیەک لە پەیوەندیدا هەیە."
 
-# --- ڕوونمای بەکارهێنەر (Sidebar) ---
+# --- ٣. بەشی کۆنترۆڵ (Sidebar) ---
 with st.sidebar:
-    st.header("📚 ژووری فێربوون")
-    urls = st.text_area("لینکەکان (هەر دانەیەک لە دێڕێک):")
-    if st.button("فێری بکە"):
+    st.header("⚙️ بەڕێوەبردنی K.AI")
+    if st.button("🗑️ پاککردنەوەی مێشک (Reset)"):
+        if os.path.exists("K-Data/brain.txt"):
+            os.remove("K-Data/brain.txt")
+            st.success("مێشکی K.AI پاککرایەوە! ئێستا زانیاری نوێی بدەرێ.")
+    
+    st.divider()
+    urls = st.text_area("لینکەکان (لێرە دایان بنێ):")
+    if st.button("📖 دەستپێکردنی فێربوون"):
         for link in urls.split('\n'):
-            if link: 
-                ok, msg = learn_from_url(link)
-                st.write(f"{link[:20]}... : {msg}")
+            if link: ok, msg = deep_learn(link); st.write(f"{msg}")
 
-# --- بەشی چاتی زیرەک (ئەنجام) ---
-st.divider()
-query = st.text_input("پرسیارەکەت بنووسە (بۆ نموونە: عەلائەدین سەجادی کێیە؟)")
-
+# --- ٤. بەشی گفتوگۆ و وەڵامدانەوە ---
+query = st.text_input("چی دەپرسی دەربارەی مێژوو و ئەدەبی کورد؟")
 if query:
     if os.path.exists("K-Data/brain.txt"):
         with open("K-Data/brain.txt", "r", encoding="utf-8") as f:
-            brain = f.read()
+            knowledge = f.read()
         
-        # گەڕانی زیرەک بەدوای وەڵامدا
-        words = query.split()
-        paragraphs = brain.split('\n\n')
-        results = [p for p in paragraphs if any(w in p for w in words)]
+        # گەڕانێکی وردتر بۆ دۆزینەوەی پەرەگرافە پەیوەندیدارەکان
+        paragraphs = [p for p in knowledge.split('\n\n') if any(word in p for word in query.split())]
         
-        if results:
-            st.markdown("### 📖 ئەنجامی لێکۆڵینەوەی K.AI:")
-            for res in results[:3]: # تەنها ٣ باشترین وەڵام نیشان دەدەین
-                st.info(res)
+        if paragraphs:
+            st.markdown("### 📜 وەڵامی تێروتەسەلی K.AI:")
+            for p in paragraphs[:5]: # نیشاندانی ٥ باشترین پەرەگراف
+                st.markdown(f'<div class="k-card">{p}</div>', unsafe_allow_html=True)
         else:
-            st.warning("ببورە، هێشتا زانیاری تەواوم لەسەر ئەمە نییە.")
-    else:
-        st.write("سڵاو! من K.AIـم. تکایە سەرەتا مێشکم پڕ بکە.")
+            st.warning("ببورە، ئەم بابەتەم هێشتا نەخوێندووەتەوە. لینکێکم بدەرێ تا فێری ببم.")
+    else: st.info("مێشکی K.AI خاڵییە. تکایە لە لای چەپەوە مێژووی فێر بکە.")
