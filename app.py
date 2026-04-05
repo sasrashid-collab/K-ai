@@ -4,69 +4,126 @@ from bs4 import BeautifulSoup
 import os
 import time
 
-# --- ١. ناسنامە و ستایلی شاهانەی K.AI ---
-st.set_page_config(page_title="K.AI Pro - K.Kod", layout="wide", page_icon="🤖")
+# --- ١. ڕێکخستنی ناسنامە و دیزاینی شاهانەی K.AI ---
+st.set_page_config(page_title="K.AI Mega Pro - K.Kod", layout="wide", page_icon="🤖")
+
+# ستایلی پێشکەوتوو بۆ ئەوەی سیستمەکە لە هەموو لایەکەوە کوردی بێت و "سەرمای نەبێت"
 st.markdown("""
     <style>
-    .stApp { direction: rtl; text-align: right; background-color: #f4f7f6; }
-    p, h1, h2, h3, div, span { direction: rtl; text-align: right !important; font-family: 'Tahoma'; color: #2c3e50; }
-    .stChatInput { direction: rtl; text-align: right; }
-    .stChatMessage { border-radius: 15px; padding: 10px; margin: 5px; }
+    @import url('https://googleapis.com');
+    html, body, [class*="st-"] {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Noto Sans Arabic', Tahoma, sans-serif;
+    }
+    .stApp { background-color: #f8f9fa; }
+    .main-card {
+        background-color: white;
+        padding: 30 inline-block;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-right: 8px solid #1a73e8;
+        margin-bottom: 20px;
+    }
+    .stChatInput { border-top: 2px solid #1a73e8 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-if not os.path.exists('K-Data'): os.makedirs('K-Data')
+if not os.path.exists('K-Data'):
+    os.makedirs('K-Data')
 
-st.title("🤖 پڕۆژەی زیرەکی دەستکردی K.AI")
-st.subheader("سەرپەرشتیار و خاوەن: K.Kod")
+# نازناوی پڕۆژەکە
+st.title("🤖 پڕۆژەی گەورەی K.AI Ultra")
+st.markdown("### بنکەی زیرەکی دەستکردی نیشتمانی - سەرپەرشتیار: **K.Kod**")
+st.divider()
 
-# --- ٢. مەکینەی فێربوونی قووڵ و بێ سنوور ---
-def learn_from_url(url):
-    url = url.strip().lstrip('.')
-    if not url.startswith(("http://", "https://")): url = "https://" + url
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+# --- ٢. مەکینەی فێربوونی قووڵ و گەڕانی ئۆتۆماتیکی (Autonomous Engine) ---
+def kai_engine_search(topic):
+    """ئەم بەشە مێشکی K.AIـە کە خۆی دەچێتە ناو ئینتەرنێت کاتێک زانیاری نییە"""
+    search_query = topic.replace(" ", "_")
+    # گەڕان لە ویکیپیدیای کوردی وەک سەرچاوەی سەرەکی
+    url = f"https://wikipedia.org{search_query}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
     try:
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.get(url, headers=headers, timeout=20)
         response.encoding = 'utf-8'
-        soup = BeautifulSoup(response.text, 'html.parser')
-        tags = soup.find_all(['p', 'h1', 'h2', 'h3', 'span'])
-        content = " ".join([t.get_text() for t in tags if len(t.get_text()) > 30])
-        if len(content.strip()) > 50:
-            with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
-                f.write(f"\n\n--- سەرچاوە: {url} ---\n{content}")
-            return True, f"✅ سەرکەوتوو بوو: {len(content)} پیت وەرگیرا."
-        return False, "⚠️ دەقێکی پاک نەدۆزرایەوە."
-    except Exception as e: return False, f"❌ هەڵەی پەیوەندی: {str(e)}"
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            # دەرهێنانی تەواوی پەرەگرافەکان بۆ ئەوەی وەڵامەکە تێروتەسەل بێت
+            paragraphs = soup.find_all(['p', 'h2', 'h3'])
+            content = "\n\n".join([p.get_text() for p in paragraphs if len(p.get_text()) > 40])
+            
+            if len(content) > 100:
+                with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
+                    f.write(f"\n\n--- فێربوونی خۆکار لەسەر: {topic} ---\n{content}")
+                return content
+        return None
+    except Exception as e:
+        return None
 
-# --- ٣. ڕوونمای فێربوون (Sidebar) ---
-with st.sidebar:
-    st.header("📚 مێشکی K.AI")
-    urls_input = st.text_area("لینکەکان لێرە پەیست بکە (هەر دانەیەک لە دێڕێک):", height=200)
-    if st.button("فەرمانی فێربوون"):
-        if urls_input:
-            for link in urls_input.split('\n'):
-                if link.strip():
-                    with st.spinner(f'خەریکی خوێندنەوەی: {link}'):
-                        ok, msg = learn_from_url(link)
-                        if ok: st.success(msg)
-                        else: st.error(msg)
-    st.divider()
-    st.write("وەشانی ٧٥ دێڕی - بێ سەرما")
+# --- ٣. بەڕێوەبردنی مێژووی گفتوگۆ (Chat Memory) ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# --- ٤. گفتوگۆی ڕاستەوخۆ و وەڵامدانەوە ---
-query = st.chat_input("لێرە هەرچییەکت دەوێت لە K.AI بپرسە...")
+# نیشاندانی چاتەکانی پێشوو
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# --- ٤. لۆژیکی وەڵامدانەوە و فێربوونی خودکار (Real-time Processing) ---
+query = st.chat_input("لێرە پرسیار لە K.AI بکە یان بابەتێک بنووسە بۆ فێربوون...")
 
 if query:
-    with st.chat_message("user"): st.write(query)
+    # ١. نیشاندانی پرسیاری بەکارهێنەر
+    st.session_state.messages.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+
+    # ٢. وەڵامدانەوەی K.AI
     with st.chat_message("assistant"):
+        response_placeholder = st.empty()
+        full_response = ""
+        
+        # گەڕان لە مێشکی ناوخۆیی (K-Data)
+        found_in_brain = False
         if os.path.exists("K-Data/brain.txt"):
             with open("K-Data/brain.txt", "r", encoding="utf-8") as f:
-                brain_data = f.read()
-            if any(word in brain_data for word in query.split()):
-                relevant_parts = [line for line in brain_data.split('\n') if any(word in line for word in query.split())]
-                st.write("\n\n".join(relevant_parts[:10]))
-            else:
-                st.warning("ببورە جەنابت، هێشتا مێشکم ئەمەی تێدا نییە. لینکێکم بدەرێ تا فێری ببم.")
-        else: st.info("سڵاو! من K.AIـم. تکایە لە لای چەپەوە فێرم بکە.")
+                brain_knowledge = f.read()
+            
+            # لۆژیکی گەڕانی ورد لە ناو پەرەگرافەکان
+            lines = brain_knowledge.split('\n\n')
+            relevant_lines = [l for l in lines if any(word in l for word in query.split() if len(word) > 2)]
+            
+            if relevant_lines:
+                full_response = "📖 **ئەوەی لە مێشکمدا دۆزیمەوە:**\n\n" + "\n\n".join(relevant_lines[:5])
+                found_in_brain = True
 
-# --- کۆتایی ٧٥ دێڕی ڕەسەن ---
+        # ئەگەر لە مێشکدا نەبوو، یەکسەر دەچێت بۆ گەڕانی ئۆتۆماتیکی (خۆکار)
+        if not found_in_brain:
+            with st.spinner(f"🔍 K.AI خەریکی گەڕان و فێربوونی خۆکارە دەربارەی: {query}"):
+                new_data = kai_engine_search(query)
+                if new_data:
+                    full_response = f"✅ **من فێری بابەتێکی نوێ بووم دەربارەی {query}:**\n\n" + new_data[:2000] + "..."
+                else:
+                    full_response = "ببورە جەنابت، نە لە مێشکمدا زانیاریم هەبوو نە لە ئینتەرنێت سەرچاوەیەکی پاکم بۆ دۆزییەوە."
+
+        response_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+# --- ٥. لایەنی بەڕێوەبردن (Sidebar Control) ---
+with st.sidebar:
+    st.image("https://flaticon.com", width=100)
+    st.header("⚙️ بەڕێوەبردنی K.AI")
+    st.info(f"وەشانی: Mega Pro 1.0\nخاوەن: K.Kod")
+    
+    if st.button("🗑️ سڕینەوەی مێشک و مێژوو"):
+        if os.path.exists("K-Data/brain.txt"):
+            os.remove("K-Data/brain.txt")
+        st.session_state.messages = []
+        st.rerun()
+    
+    st.divider()
+    st.write("ئەم وێب ئەپە تایبەتە بە کۆمەڵگەی K.Kod بۆ پەرەپێدانی زیرەکی دەستکردی کوردی.")
