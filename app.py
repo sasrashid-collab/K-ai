@@ -1,59 +1,44 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
 import os
-import googlesearch # پێویستە لە requirements.txt زیاد بکرێت
 
-# --- ١. ڕێکخستنی ناسنامەی گشتگیری K.AI ---
-st.set_page_config(page_title="K.AI Ultra - K.Kod", layout="wide")
-st.markdown("""<style> .stApp { direction: rtl; text-align: right; } </style>""", unsafe_allow_html=True)
+# --- ١. ڕێکخستنی ناسنامەی K.AI Coder ---
+st.set_page_config(page_title="K.AI Coder - K.Kod", layout="wide")
+st.markdown("""<style> .stApp { direction: rtl; text-align: right; } 
+code { direction: ltr; text-align: left; background-color: #1e1e1e; color: #d4d4d4; padding: 10px; display: block; border-radius: 5px; }
+</style>""", unsafe_allow_html=True)
 
-if not os.path.exists('K-Data'): os.makedirs('K-Data')
+st.title("🤖 K.AI Ultra Coder")
+st.subheader("زیرەکی دەستکردی گشتگیر و کۆدنوس - پەرەپێدراوی K.Kod")
 
-st.title("🤖 K.AI Ultra: زیرەکی دەستکردی گشتگیر")
-st.subheader("پەرەپێدراوی دامەزراوەی K.Kod")
-
-# --- ٢. مەکینەی گەڕانی ئۆتۆنۆم (بۆ ئەوەی خۆی زانیاری بدۆزێتەوە) ---
-def autonomous_learn(topic):
-    st.write(f"🔍 K.AI خەریکی گەڕانە بەدوای زانیاری دەربارەی: {topic}...")
+# --- ٢. مەکینەی وەڵامدانەوە و کۆدنووسین (بەکارهێنانی API بێبەرامبەر) ---
+def ask_kai(prompt):
+    # لێرەدا K.AI پەیوەندی بە مۆدێلێکی بەهێزەوە دەکات بۆ وەڵامدانەوەی گشتگیر
+    headers = {"Authorization": "Bearer YOUR_FREE_API_KEY"} # لێرە دەتوانین API کلیلی بێبەرامبەر دابنێین
+    api_url = "https://huggingface.co"
+    
+    payload = {"inputs": f"You are K.AI created by K.Kod. Answer in Kurdish and provide code if asked: {prompt}"}
+    
     try:
-        # گەڕان لە گووگڵ بۆ دۆزینەوەی ٥ باشترین سەرچاوە
-        from googlesearch import search
-        links = list(search(topic + " کوردی", num_results=5))
-        
-        for link in links:
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            res = requests.get(link, headers=headers, timeout=10)
-            res.encoding = 'utf-8'
-            soup = BeautifulSoup(res.text, 'html.parser')
-            text = " ".join([p.get_text() for p in soup.find_all('p') if len(p.get_text()) > 50])
-            
-            with open("K-Data/brain.txt", "a", encoding="utf-8") as f:
-                f.write(f"\n{text}")
-        return True
-    except: return False
+        response = requests.post(api_url, json=payload, timeout=30)
+        return response.json()[0]['generated_text']
+    except:
+        return "ببورە، لە ئێستادا ناتوانم وەڵامت بدەمەوە. تکایە پەیوەندی ئینتەرنێتەکەت بپشکنە."
 
 # --- ٣. ڕوونمای بەکارهێنەر ---
-with st.sidebar:
-    st.header("🧠 گەشەپێدانی ئۆتۆماتیکی")
-    topic_to_learn = st.text_input("بابەتێک بنووسە بۆ ئەوەی K.AI خۆی فێری بێت:")
-    if st.button("فەرمانی فێربوون بدە"):
-        if topic_to_learn:
-            if autonomous_learn(topic_to_learn):
-                st.success(f"K.AI ئێستا دەربارەی {topic_to_learn} زۆر زیرەکتر بوو!")
-            else: st.error("کێشەیەک لە گەڕاندا هەبوو.")
+st.info("جەنابت دەتوانیت لێرە داوای نووسینی کۆد، شیکاری کێشە، یان هەر پرسیارێکی تر بکەیت.")
 
-# --- ٤. گفتوگۆی گشتگیر ---
-query = st.text_input("لێرە هەرچییەکت دەوێت لە K.AI بپرسە:")
-if query:
-    if os.path.exists("K-Data/brain.txt"):
-        with open("K-Data/brain.txt", "r", encoding="utf-8") as f:
-            brain = f.read()
-        
-        # دۆزینەوەی وەڵام لە مێشکە گشتگیرەکەدا
-        results = [p for p in brain.split('\n') if any(w in p for w in query.split())]
-        if results:
-            st.info("\n".join(results[:10]))
-        else:
-            st.warning("ئەمە لە مێشکمدا نییە. فەرمانم پێ بدە لە لای چەپەوە بچمە ناو ئینتەرنێت و فێری ببم!")
+user_input = st.text_area("چی بۆ K.AI بنووسم؟", placeholder="بۆ نموونە: کۆدێکی پایتۆنم بۆ بنووسە بۆ لێکدانی دوو ژمارە...")
 
+if st.button("ناردن بۆ K.AI"):
+    if user_input:
+        with st.spinner("K.AI خەریکی بیرکردنەوە و کۆدنووسینە..."):
+            answer = ask_kai(user_input)
+            st.markdown("### 📝 وەڵامی K.AI:")
+            st.write(answer)
+    else:
+        st.warning("تکایە سەرەتا شتێک بنووسە.")
+
+# --- ٤. بەشی فێربوونی بەردەوام لە GitHub ---
+st.sidebar.header("🛠️ گەشەپێدانی K.Kod")
+st.sidebar.write("ئەم وەشانە توانای نووسینی کۆد و لۆژیکی بیرکاری هەیە.")
