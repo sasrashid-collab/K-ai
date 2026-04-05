@@ -1,44 +1,45 @@
 import streamlit as st
 import requests
-import time
+import os
 
-# --- ١. ڕێکخستنی ناسنامە ---
-st.set_page_config(page_title="K.AI Pro - Always Online", layout="wide")
+# --- ١. ناسنامەی K.AI ---
+st.set_page_config(page_title="K.AI Turbo - K.Kod", layout="wide")
 st.markdown("""<style> .stApp { direction: rtl; text-align: right; } </style>""", unsafe_allow_html=True)
 
-st.title("🤖 K.AI Pro: وەشانی هەمیشە ئامادە")
-st.subheader("پەرەپێدراوی K.Kod")
+st.title("🤖 K.AI Turbo: وەشانی بێ وەستان")
+st.subheader("پەرەپێدراوی K.Kod - خێراترین وەشانی کورد")
 
-# --- ٢. مەکینەی وەڵامدانەوەی زیرەک (بێ وەستان) ---
-def get_kai_response(prompt):
-    # ئەم مۆدێلە زۆر خێراترە و کەمتر دەوەستێت
-    models = [
-        "https://huggingface.co",
-        "https://huggingface.co"
-    ]
+# --- ٢. مەکینەی وەڵامدانەوەی زیرەک (بەکارهێنانی مۆدێلی جێگرەوە) ---
+def ask_kai_turbo(prompt):
+    # ئەم مۆدێلە لەسەر سێرڤەرێکی جیاوازە کە کەمتر دەوەستێت
+    API_URL = "https://huggingface.co"
+    # لێرەدا دەتوانیت کلیلەکەت دابنێیت بۆ ئەوەی هەرگیز نەوەستێت
+    headers = {"Authorization": "Bearer hf_xxx"} 
     
-    headers = {"Authorization": "Bearer hf_VvYpYpYpYpYpYpYpYpYpYpYpYpYp"} # ئەمە تەنها نموونەیە
+    payload = {
+        "inputs": f"You are K.AI by K.Kod. Always reply in Kurdish. User: {prompt}",
+        "parameters": {"max_new_tokens": 700, "return_full_text": False}
+    }
     
-    for model_url in models:
-        try:
-            payload = {"inputs": f"You are K.AI by K.Kod. Answer in Kurdish: {prompt}", "parameters": {"max_new_tokens": 500}}
-            response = requests.post(model_url, json=payload, timeout=20)
-            if response.status_code == 200:
-                return response.json()[0]['generated_text']
-        except:
-            continue
-    return "ببورە جەنابت، سێرڤەرەکە کەمێک قەرەباڵغە. تکایە چرکەیەک بوەستە و دووبارە تاقی بکەرەوە."
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=25)
+        if response.status_code == 200:
+            return response.json()[0]['generated_text']
+        else:
+            return "⚠️ سێرڤەرەکە خەریکی خۆگەرمکردنەوەیە، تکایە یەک چرکەی تر دووبارەی بکەرەوە."
+    except:
+        return "❌ کێشەی پەیوەندی هەیە، تکایە ئینتەرنێتەکەت بپشکنە."
 
-# --- ٣. ڕوونمای بەکارهێنەر ---
-user_query = st.text_area("چی دەپرسی لە K.AI؟", placeholder="بۆ نموونە: مێژووی کورد بە کورتی بنووسە...")
+# --- ٣. بەشی گفتوگۆ ---
+user_query = st.chat_input("لێرە هەرچییەکت دەوێت لە K.AI بپرسە...")
 
-if st.button("بپرسە"):
-    if user_query:
-        with st.spinner("K.AI خەریکی وەڵامدانەوەیە..."):
-            answer = get_kai_response(user_query)
-            st.markdown("### 📝 وەڵامی K.AI:")
-            st.info(answer)
-    else:
-        st.warning("تکایە سەرەتا پرسیارێک بنووسە.")
+if user_query:
+    with st.chat_message("user"):
+        st.write(user_query)
+    
+    with st.chat_message("assistant"):
+        with st.spinner("K.AI خەریکی بیرکردنەوەیە..."):
+            answer = ask_kai_turbo(user_query)
+            st.write(answer)
 
-st.sidebar.info("K.AI ئێستا وەک مێشکێکی سەربەخۆ کار دەکات.")
+st.sidebar.warning("تێبینی: ئەگەر وەڵامی نەدایەوە، تەنها یەکجار لاپەڕەکە نوێ بکەرەوە (Refresh).")
